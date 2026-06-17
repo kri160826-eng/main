@@ -1,0 +1,112 @@
+name: Deploy ADK Agent to Cloud Run
+
+on:
+  push:
+    branches:
+      - main          # Auto-deploy on merge to main
+  workflow_dispatch:  # Manual trigger from GitHub UI
+
+env:
+  # ─── Configure these once in GitHub → Settings → Secrets & Variables ───────
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}          # e.g. my-project-123
+  GCP_REGION:     ${{ vars.GCP_REGION || 'us-central1' }}
+  SERVICE_NAME:   ${{ vars.CLOUD_RUN_SERVICE_NAME || 'adk-dm-agent' }}
+  IMAGE_NAME:     adk-dm-agent
+  # ─────────────────────────────────────────────────────────────────────────────
+
+jobs:
+  deploy:
+    name: Build & Deploy to Cloud Run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # Required for Workload Identity Federation
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 2. Authenticate to GCP via Workload Identity Federation ──────────────
+      #   (No long-lived service account key stored in GitHub)
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          # Format: projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          # Format: sa-name@PROJECT_ID.iam.gserviceaccount.com
+
+      # ── 3. Set up gcloud SDK ─────────────────────────────────────────────────
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      # ── 4. Configure Docker to use gcloud credentials ────────────────────────
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      # ── 5. Build & push Docker image ─────────────────────────────────────────
+      - name: Build and Push Docker Image
+        run: |
+          IMAGE_URI="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/cloud-run-apps/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          IMAGE_LATEST="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/cloud-run-apps/${{ env.IMAGE_NAME }}:latest"
+
+          docker build \
+            -t "$IMAGE_URI" \
+            -t "$IMAGE_LATEST" \
+            .
+
+          docker push "$IMAGE_URI"
+          docker push "$IMAGE_LATEST"
+
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+
+      # ── 6. Deploy to Cloud Run ───────────────────────────────────────────────
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image "${{ env.IMAGE_URI }}" \
+            --region "${{ env.GCP_REGION }}" \
+            --project "${{ env.GCP_PROJECT_ID }}" \
+            --platform managed \
+            --port 8000 \
+            --memory 1Gi \
+            --cpu 1 \
+            --min-instances 0 \
+            --max-instances 5 \
+            --timeout 300 \
+            --set-env-vars "GOOGLE_CLOUD_PROJECT=${{ env.GCP_PROJECT_ID }}" \
+            --set-env-vars "GOOGLE_CLOUD_LOCATION=${{ env.GCP_REGION }}" \
+            --set-env-vars "GOOGLE_GENAI_USE_VERTEXAI=1" \
+            --service-account "${{ secrets.WIF_SERVICE_ACCOUNT }}" \
+            --allow-unauthenticated \
+            --quiet
+
+      # ── 7. Print the service URL ─────────────────────────────────────────────
+      - name: Get Service URL
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region "${{ env.GCP_REGION }}" \
+            --project "${{ env.GCP_PROJECT_ID }}" \
+            --format "value(status.url)")
+          echo ""
+          echo "✅ ADK Agent deployed successfully!"
+          echo "🌐 Service URL : $URL"
+          echo "🖥️  ADK UI      : $URL"
+          echo "🔌 API endpoint: $URL/run"
+          echo "SERVICE_URL=$URL" >> $GITHUB_ENV
+
+      # ── 8. Smoke test ────────────────────────────────────────────────────────
+      - name: Smoke test — health check
+        run: |
+          sleep 5
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.SERVICE_URL }}")
+          echo "Health check HTTP status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "⚠️  Service returned $HTTP_STATUS — check Cloud Run logs"
+            exit 1
+          fi
+          echo "✅ Health check passed"
