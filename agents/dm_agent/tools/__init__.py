@@ -4,8 +4,8 @@ from .bigquery_tools import (
     analyze_silver_schema,
     sample_silver_data,
 )
-from .gold_design_tools import generate_gold_design
-from .bigquery_gold_tools import create_gold_layer
+from .tools.gold_design_tools import generate_gold_design
+from .tools.bigquery_gold_tools import create_gold_layer
 
 __all__ = [
     "validate_bigquery_access",
