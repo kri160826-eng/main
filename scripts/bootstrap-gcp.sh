@@ -23,9 +23,9 @@ GCP_PROJECT_ID="project-612d0540-c843-44b0-a04"          # e.g. my-project-123
 GCP_REGION="us-central1"
 GITHUB_ORG="kri160826-eng"  # e.g. acme-corp
 GITHUB_REPO="main"              # e.g. adk-agent
-SERVICE_NAME="adk-dm-agent"
+SERVICE_NAME="adk-dm-agent1"
 AR_REPO="cloud-run-apps"                  # Artifact Registry repo name
-SA_NAME="adk-cloud-run-deployer"          # Service account short name
+SA_NAME="452226309078-compute"          # Service account short name
 WIF_POOL="github-pool"
 WIF_PROVIDER="github-provider"
 # ─────────────────────────────────────────────────────────────────────────────
