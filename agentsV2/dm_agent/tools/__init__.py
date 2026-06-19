@@ -6,6 +6,7 @@ from .bigquery_tools import (
 )
 from .gold_design_tools import generate_gold_design
 from .bigquery_gold_tools import create_gold_layer
+from .gcs_tools import create_gcs_config
 
 __all__ = [
     "validate_bigquery_access",
@@ -14,4 +15,5 @@ __all__ = [
     "sample_silver_data",
     "generate_gold_design",
     "create_gold_layer",
+    "create_gcs_config",
 ]
