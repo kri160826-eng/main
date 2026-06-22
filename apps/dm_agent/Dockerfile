@@ -34,4 +34,6 @@ RUN pip install -r "/app/dm_agent/requirements.txt"
 
 EXPOSE 8000
 
-CMD adk api_server --with_ui --port=8000 --host=0.0.0.0 --session_service_uri=memory:// --artifact_service_uri=memory://       "/app/dm_agent"
+#CMD adk api_server --with_ui --port=8000 --host=0.0.0.0 --session_service_uri=memory:// --artifact_service_uri=memory://       "/app/dm_agent"
+
+CMD ["sh", "-c", "adk api_server --host 0.0.0.0 --port ${PORT:-8080} /app"]
