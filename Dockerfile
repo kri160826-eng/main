@@ -24,7 +24,7 @@ RUN pip install google-adk==2.2.0
 # Copy agent - Start
 
 # Set permission
-COPY --chown=myuser:myuser "agents/dm_agent/" "/app/agents/dm_agent/"
+COPY --chown=myuser:myuser "agentsV2/dm_agent/" "/app/agentsV2/dm_agent/"
 
 # Copy agent - End
 
