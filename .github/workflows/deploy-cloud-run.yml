@@ -1,4 +1,4 @@
-# path to save : .github/workflows/deploy-cloud-run.yml
+# path to save: .github/workflows/deploy-cloud-run.yml
 name: Deploy Cloud Run Apps workflow
 
 on:
@@ -65,22 +65,25 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: 'projects/452226309078/locations/global/workloadIdentityPools/github-pool/providers/github-provider'          
+          workload_identity_provider: 'projects/452226309078/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker auth
-        run: |
-          gcloud auth configure-docker ${{ matrix.region }}-docker.pkg.dev --quiet
+      - name: Set up Python for ADK
+        if: ${{ matrix.deploy_type == 'adk_agent' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-      - name: Build Docker image
+      - name: Install ADK CLI
+        if: ${{ matrix.deploy_type == 'adk_agent' }}
+        shell: bash
         run: |
-          IMAGE="${{ matrix.region }}-docker.pkg.dev/${{ matrix.project_id }}/${{ matrix.artifact_repo }}/${{ matrix.app_name }}:${{ github.sha }}"
-          docker build -t "$IMAGE" "${{ matrix.path }}"
-          docker push "$IMAGE"
-          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          python -m pip install --upgrade pip
+          pip install google-adk
+          adk --help
 
       - name: Build env vars
         shell: bash
@@ -95,21 +98,49 @@ jobs:
           EOF
           fi
 
-      - name: Deploy to Cloud Run
+      - name: Deploy ADK agent to Cloud Run
+        if: ${{ matrix.deploy_type == 'adk_agent' }}
+        shell: bash
+        run: |
+          AUTH_INPUT="n"
+          if [ "${{ matrix.allow_unauthenticated }}" = "true" ]; then
+            AUTH_INPUT="y"
+          fi
+
+          CMD="adk deploy cloud_run \
+            --project='${{ matrix.project_id }}' \
+            --region='${{ matrix.region }}' \
+            --service_name='${{ matrix.service_name }}'"
+
+          if [ "${{ matrix.with_ui }}" = "true" ]; then
+            CMD="$CMD --with_ui"
+          fi
+
+          if [ -n "$ENV_VARS" ]; then
+            CMD="$CMD --set-env-vars='$ENV_VARS'"
+          fi
+
+          CMD="$CMD '${{ matrix.path }}'"
+
+          echo "$CMD"
+          printf "%s\n" "$AUTH_INPUT" | eval "$CMD"
+
+      - name: Deploy other apps to Cloud Run
+        if: ${{ matrix.deploy_type == 'other_apps' }}
         shell: bash
         run: |
           AUTH_FLAG="--no-allow-unauthenticated"
-
           if [ "${{ matrix.allow_unauthenticated }}" = "true" ]; then
             AUTH_FLAG="--allow-unauthenticated"
           fi
 
           CMD="gcloud run deploy '${{ matrix.service_name }}' \
-            --image '$IMAGE' \
+            --source '${{ matrix.path }}' \
             --project '${{ matrix.project_id }}' \
             --region '${{ matrix.region }}' \
             --platform managed \
-            $AUTH_FLAG"
+            $AUTH_FLAG \
+            --quiet"
 
           if [ -n "$ENV_VARS" ]; then
             CMD="$CMD --set-env-vars='$ENV_VARS'"
