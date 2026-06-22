@@ -9,20 +9,6 @@
       "project_id": "project-612d0540-c843-44b0-a04",
       "artifact_repo": "cloud-run-source-deploy",
       "allow_unauthenticated": true
-    },
-    {
-      "app_name": "streamlit_ui",
-      "service_name": "streamlit-ui",
-      "path": "apps/streamlit_ui",
-      "branch": "main",
-      "region": "us-central1",
-      "project_id": "project-612d0540-c843-44b0-a04",
-      "artifact_repo": "cloud-run-source-deploy",
-      "allow_unauthenticated": true,
-      "env_vars": {
-        "AGENT_SERVICE_URL": "https://dm-agent-452226309078.us-central1.run.app",
-        "ADK_APP_NAME": "dm_agent"
-      }
     }
   ]
 }
