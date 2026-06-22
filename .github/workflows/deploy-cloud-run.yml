@@ -27,8 +27,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: git-bash
-        run: echo  ${{ secrets.WIF_SERVICE_ACCOUNT }}
+      - name: Safely Verify Secret Exists and Check Length
+        env:
+          MY_SECRET: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$MY_SECRET" ]; then
+            echo "❌ Secret is empty or not found!"
+            exit 1
+          else
+            echo "✅ Secret is set. Character length: ${#MY_SECRET}"
+          fi
         
       # ── 2. Authenticate to GCP via Workload Identity Federation ──────────────
       #   (No long-lived service account key stored in GitHub)
