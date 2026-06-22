@@ -118,7 +118,7 @@ jobs:
       - name: Smoke test — health check
         run: |
           sleep 5
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.SERVICE_URL }}")
+          HTTP_STATUS=$(curl -L -s -o /dev/null -w "%{http_code}" "${{ env.SERVICE_URL }}")
           echo "Health check HTTP status: $HTTP_STATUS"
           if [ "$HTTP_STATUS" != "200" ]; then
             echo "⚠️  Service returned $HTTP_STATUS — check Cloud Run logs"
