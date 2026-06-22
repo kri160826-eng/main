@@ -10,8 +10,8 @@ env:
   # ─── Configure these once in GitHub → Settings → Secrets & Variables ───────
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}          # e.g. my-project-123
   GCP_REGION:     ${{ vars.GCP_REGION || 'us-central1' }}
-  SERVICE_NAME:   ${{ vars.CLOUD_RUN_SERVICE_NAME || 'adk-dm-agent' }}
-  IMAGE_NAME:     adk-dm-agent
+  SERVICE_NAME:   ${{ vars.CLOUD_RUN_SERVICE_NAME || 'adk-dm-agent-v2' }}
+  IMAGE_NAME:     adk-dm-agent-v2
   # ─────────────────────────────────────────────────────────────────────────────
 
 jobs:
@@ -27,6 +27,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: git-bash
+        run: echo  ${{ secrets.WIF_SERVICE_ACCOUNT }}
+        
       # ── 2. Authenticate to GCP via Workload Identity Federation ──────────────
       #   (No long-lived service account key stored in GitHub)
       - name: Authenticate to Google Cloud
