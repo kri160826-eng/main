@@ -29,9 +29,9 @@ COPY --chown=myuser:myuser "agentsV2/dm_agent/" "/app/agentsV2/dm_agent/"
 # Copy agent - End
 
 # Install Agent Deps - Start
-RUN pip install -r "/app/agents/dm_agent/requirements.txt"
+RUN pip install -r "/app/agentsV2/dm_agent/requirements.txt"
 # Install Agent Deps - End
 
 EXPOSE 8000
 
-CMD adk api_server --with_ui --port=8000 --host=0.0.0.0 --session_service_uri=memory:// --artifact_service_uri=memory://       "/app/agents"
+CMD adk api_server --with_ui --port=8000 --host=0.0.0.0 --session_service_uri=memory:// --artifact_service_uri=memory://       "/app/agentsV2"
