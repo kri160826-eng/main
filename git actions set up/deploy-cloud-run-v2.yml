@@ -1,0 +1,122 @@
+# path to save : .github/workflows/deploy-cloud-run.yml
+name: Deploy Cloud Run Apps
+
+on:
+  push:
+    branches:
+      - main
+      - streamlit
+      - dev
+      - qa
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: "Optional: deploy only one app_name from apps.json"
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: matrix
+        shell: bash
+        run: |
+          CURRENT_BRANCH="${GITHUB_REF_NAME}"
+          APP_NAME="${{ github.event.inputs.app_name }}"
+
+          python - <<EOF >> "$GITHUB_OUTPUT"
+          import json, os
+
+          with open(".github/deploy/apps.json") as f:
+              config = json.load(f)
+
+          branch = os.environ["CURRENT_BRANCH"]
+          app_name = os.environ.get("APP_NAME", "")
+
+          apps = []
+          for app in config["apps"]:
+              if app["branch"] != branch:
+                  continue
+              if app_name and app["app_name"] != app_name:
+                  continue
+              apps.append(app)
+
+          print("matrix=" + json.dumps({"include": apps}))
+          EOF
+
+  deploy:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.matrix != '{"include":[]}' }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker auth
+        run: |
+          gcloud auth configure-docker ${{ matrix.region }}-docker.pkg.dev --quiet
+
+      - name: Build Docker image
+        run: |
+          IMAGE="${{ matrix.region }}-docker.pkg.dev/${{ matrix.project_id }}/${{ matrix.artifact_repo }}/${{ matrix.app_name }}:${{ github.sha }}"
+          docker build -t "$IMAGE" "${{ matrix.path }}"
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Build env vars
+        shell: bash
+        run: |
+          if [ '${{ toJson(matrix.env_vars) }}' = 'null' ]; then
+            echo "ENV_VARS=" >> "$GITHUB_ENV"
+          else
+            python - <<EOF >> "$GITHUB_ENV"
+          import json
+          envs = json.loads(r'''${{ toJson(matrix.env_vars) }}''')
+          print("ENV_VARS=" + ",".join([f"{k}={v}" for k, v in envs.items()]))
+          EOF
+          fi
+
+      - name: Deploy to Cloud Run
+        shell: bash
+        run: |
+          AUTH_FLAG="--no-allow-unauthenticated"
+
+          if [ "${{ matrix.allow_unauthenticated }}" = "true" ]; then
+            AUTH_FLAG="--allow-unauthenticated"
+          fi
+
+          CMD="gcloud run deploy '${{ matrix.service_name }}' \
+            --image '$IMAGE' \
+            --project '${{ matrix.project_id }}' \
+            --region '${{ matrix.region }}' \
+            --platform managed \
+            $AUTH_FLAG"
+
+          if [ -n "$ENV_VARS" ]; then
+            CMD="$CMD --set-env-vars='$ENV_VARS'"
+          fi
+
+          echo "$CMD"
+          eval "$CMD"
