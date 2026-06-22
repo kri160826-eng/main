@@ -110,7 +110,8 @@ jobs:
           CMD="adk deploy cloud_run \
             --project='${{ matrix.project_id }}' \
             --region='${{ matrix.region }}' \
-            --service_name='${{ matrix.service_name }}'"
+            --service_name='${{ matrix.service_name }}'
+            -- --clear-base-image "
 
           if [ "${{ matrix.with_ui }}" = "true" ]; then
             CMD="$CMD --with_ui"
