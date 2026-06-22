@@ -29,7 +29,7 @@ COPY --chown=myuser:myuser "agentsV2/dm_agent/" "/app/agentsV2/dm_agent/"
 # Copy agent - End
 
 # Install Agent Deps - Start
-RUN pip install -r "/app/agentsV2/dm_agent/requirements.txt"
+RUN pip install -r "/app/agentsV2/dm_agent/requirements.txt" 
 # Install Agent Deps - End
 
 EXPOSE 8000
