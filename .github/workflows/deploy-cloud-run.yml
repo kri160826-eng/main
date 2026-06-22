@@ -111,7 +111,7 @@ jobs:
             --project='${{ matrix.project_id }}' \
             --region='${{ matrix.region }}' \
             --service_name='${{ matrix.service_name }}'
-            -- --clear-base-image "
+            --with_ui"
 
           if [ "${{ matrix.with_ui }}" = "true" ]; then
             CMD="$CMD --with_ui"
@@ -121,7 +121,7 @@ jobs:
             CMD="$CMD --set-env-vars='$ENV_VARS'"
           fi
 
-          CMD="$CMD '${{ matrix.path }}'"
+          CMD="$CMD '${{ matrix.path }}' -- --clear-base-image"
 
           echo "$CMD"
           printf "%s\n" "$AUTH_INPUT" | eval "$CMD"
