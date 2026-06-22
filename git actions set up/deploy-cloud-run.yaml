@@ -1,14 +1,18 @@
 # path to save : .github/workflows/deploy-cloud-run.yml
-name: Deploy Cloud Run Apps workflow
+
+name: Deploy Cloud Run Apps
 
 on:
   push:
     branches:
       - main
+      - streamlit
+      - dev
+      - qa
   workflow_dispatch:
     inputs:
       app_name:
-        description: "Optional: deploy only one app_name from apps.json"
+        description: "Optional: deploy only one app name from apps.json"
         required: false
 
 permissions:
@@ -43,7 +47,7 @@ jobs:
           for app in config["apps"]:
               if app["branch"] != branch:
                   continue
-              if app_name and app["app_name"] != app_name:
+              if app_name and app["name"] != app_name:
                   continue
               apps.append(app)
 
@@ -81,39 +85,20 @@ jobs:
           docker build -t "$IMAGE" "${{ matrix.path }}"
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
-
-      - name: Build env vars
-        shell: bash
-        run: |
-          if [ '${{ toJson(matrix.env_vars) }}' = 'null' ]; then
-            echo "ENV_VARS=" >> "$GITHUB_ENV"
-          else
-            python - <<EOF >> "$GITHUB_ENV"
-          import json
-          envs = json.loads(r'''${{ toJson(matrix.env_vars) }}''')
-          print("ENV_VARS=" + ",".join([f"{k}={v}" for k, v in envs.items()]))
-          EOF
-          fi
-
+		  
       - name: Deploy to Cloud Run
-        shell: bash
         run: |
-          AUTH_FLAG="--no-allow-unauthenticated"
-
+          AUTH_FLAG=""
           if [ "${{ matrix.allow_unauthenticated }}" = "true" ]; then
             AUTH_FLAG="--allow-unauthenticated"
+          else
+            AUTH_FLAG="--no-allow-unauthenticated"
           fi
 
-          CMD="gcloud run deploy '${{ matrix.service_name }}' \
-            --image '$IMAGE' \
-            --project '${{ matrix.project_id }}' \
-            --region '${{ matrix.region }}' \
+          gcloud run deploy "${{ matrix.service_name }}" \
+            --image "$IMAGE" \
+            --project "${{ matrix.project_id }}" \
+            --region "${{ matrix.region }}" \
             --platform managed \
-            $AUTH_FLAG"
-
-          if [ -n "$ENV_VARS" ]; then
-            CMD="$CMD --set-env-vars='$ENV_VARS'"
-          fi
-
-          echo "$CMD"
-          eval "$CMD"
+            $AUTH_FLAG
+			

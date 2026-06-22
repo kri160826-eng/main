@@ -1,10 +1,13 @@
 # path to save : .github/workflows/deploy-cloud-run.yml
-name: Deploy Cloud Run Apps workflow
+name: Deploy Cloud Run Apps
 
 on:
   push:
     branches:
       - main
+      - streamlit
+      - dev
+      - qa
   workflow_dispatch:
     inputs:
       app_name:
