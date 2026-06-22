@@ -104,7 +104,7 @@ jobs:
             AUTH_FLAG="--allow-unauthenticated"
           fi
 
-          CMD="gcloud run deploy '${{ matrix.service_name }}' \
+          CMD="adk run deploy '${{ matrix.service_name }}' \
             --image '$IMAGE' \
             --project '${{ matrix.project_id }}' \
             --region '${{ matrix.region }}' \
