@@ -1,6 +1,7 @@
 {
   "apps": [
-    {
+    { 
+	  "deploy_type": "adk_agent"
       "app_name": "dm_agent",
       "service_name": "dm-agent",
       "path": "apps/dm_agent",
@@ -11,7 +12,8 @@
       "allow_unauthenticated": true
     },
     {
-      "app_name": "streamlit_ui",
+      "deploy_type": "other_apps"
+	  "app_name": "streamlit_ui",
       "service_name": "streamlit-ui",
       "path": "apps/streamlit_ui",
       "branch": "main",
