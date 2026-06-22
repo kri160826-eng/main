@@ -27,8 +27,8 @@ jobs:
       - id: matrix
         shell: bash
         run: |
-          CURRENT_BRANCH="${GITHUB_REF_NAME}"
-          APP_NAME="${{ github.event.inputs.app_name }}"
+         export CURRENT_BRANCH="${GITHUB_REF_NAME}"
+         export APP_NAME="${{ github.event.inputs.app_name }}"
 
           python - <<EOF >> "$GITHUB_OUTPUT"
           import json, os
