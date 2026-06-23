@@ -2,7 +2,7 @@
   "apps": [
     { 
 	  "deploy_type": "adk_agent",
-      "app_name": "dm_agent",
+      "app_name": "dm_agent_dummy",
       "service_name": "dm-agent",
       "path": "apps/dm_agent",
       "branch": "main",
@@ -13,7 +13,7 @@
     },
     {
       "deploy_type": "other_apps",
-	  "app_name": "streamlit_ui",
+	  "app_name": "streamlit_ui_dm",
       "service_name": "streamlit-ui",
       "path": "apps/streamlit_ui",
       "branch": "main",
