@@ -1,7 +1,7 @@
 {
   "apps": [
     { 
-      "deploy_type": "adk_agent",
+      "deploy_type": "adk_agent1",
       "app_name": "dm_agent",
       "service_name": "dm-agent-ma",
       "path": "apps/dm_agent",
@@ -22,7 +22,7 @@
       "artifact_repo": "cloud-run-source-deploy",
       "allow_unauthenticated": true,
       "env_vars": {
-        "AGENT_SERVICE_URL": "https://dm-agent-452226309078.us-central1.run.app",
+        "AGENT_SERVICE_URL": "https://dm-agent-ma-452226309078.us-central1.run.app",
         "ADK_APP_NAME": "dm_agent"
       }
     }
