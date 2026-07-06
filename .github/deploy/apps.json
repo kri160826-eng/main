@@ -1,7 +1,7 @@
 {
   "apps": [
     { 
-      "deploy_type": "adk_agent1",
+      "deploy_type": "adk_agent",
       "app_name": "dm_agent",
       "service_name": "dm-agent-ma",
       "path": "apps/dm_agent",
