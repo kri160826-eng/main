@@ -3,7 +3,7 @@
     { 
       "deploy_type": "adk_agent",
       "app_name": "dm_agent",
-      "service_name": "dm-agent-ma",
+      "service_name": "dm-agent-ma-cb",
       "path": "apps/dm_agent",
       "branch": "main",
       "region": "us-central1",
@@ -14,7 +14,7 @@
     {
       "deploy_type": "other_apps",
       "app_name": "streamlit_ui_dm",
-      "service_name": "streamlit-ui-ma",
+      "service_name": "streamlit-ui-ma-cb",
       "path": "apps/streamlit_ui",
       "branch": "main",
       "region": "us-central1",
