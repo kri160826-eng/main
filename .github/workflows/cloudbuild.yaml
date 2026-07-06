@@ -64,7 +64,7 @@ steps:
       - --memory=1Gi
       - --cpu=1
       - --timeout=300
-      - --set-env-vars=ADK_AGENT_URL=https://dm-agent-cb-452226309078.us-central1.run.app
+      - --set-env-vars=AGENT_SERVICE_URL=https://dm-agent-cb-452226309078.us-central1.run.app
 
 images:
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_ADK_SERVICE}:$COMMIT_SHA
