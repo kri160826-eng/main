@@ -3,7 +3,7 @@
     { 
       "deploy_type": "adk_agent",
       "app_name": "dm_agent",
-      "service_name": "dm-agent-ma-cb",
+      "service_name": "dm-agent-v1",
       "path": "apps/dm_agent",
       "branch": "main",
       "region": "us-central1",
@@ -13,8 +13,8 @@
     },
     {
       "deploy_type": "other_apps",
-      "app_name": "streamlit_ui_dm",
-      "service_name": "streamlit-ui-ma-cb",
+      "app_name": "streamlit_ui",
+      "service_name": "streamlit-ui-v1",
       "path": "apps/streamlit_ui",
       "branch": "main",
       "region": "us-central1",
@@ -22,7 +22,7 @@
       "artifact_repo": "cloud-run-source-deploy",
       "allow_unauthenticated": true,
       "env_vars": {
-        "AGENT_SERVICE_URL": "https://dm-agent-ma-452226309078.us-central1.run.app",
+        "AGENT_SERVICE_URL": "https://dm-agent-v1-452226309078.us-central1.run.app",
         "ADK_APP_NAME": "dm_agent"
       }
     }
