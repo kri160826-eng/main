@@ -1,0 +1,11 @@
+.env
+*.json
+!sample/*.json
+__pycache__/
+*.pyc
+.venv/
+venv/
+.git/
+.gitignore
+*.log
+README.md

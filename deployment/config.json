@@ -1,0 +1,31 @@
+{
+  "project": {
+    "id": "project-612d0540-c843-44b0-a04"
+  },
+  "region": "us-central1",
+  "artifactRegistry": {
+    "location": "us-central1",
+    "repo": "apps"
+  },
+  "service": {
+    "name": "data-modeler-agent2",
+    "sourceDir": ".",
+    "port": 8080,
+    "memory": "512Mi",
+    "cpu": "1",
+    "minInstances": 0,
+    "maxInstances": 1,
+    "allowUnauthenticated": true,
+    "envVars": {
+      "EXAMPLE_KEY": "example-value"
+    }
+  },
+  "trigger": {
+    "name": "deploy-app",
+    "github": {
+      "owner": "kri160826-eng",
+      "repo": "main"
+    },
+    "branchPattern": "^main$"
+  }
+}
