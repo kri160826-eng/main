@@ -32,11 +32,9 @@ MIN_INSTANCES="$(q '.service.minInstances')"
 MAX_INSTANCES="$(q '.service.maxInstances')"
 ALLOW_UNAUTH="$(q '.service.allowUnauthenticated')"          # true|false
 TRIGGER_NAME="$(q '.trigger.name')"
-# generation: "2nd" (host connection, regional) or "1st" (GitHub App, global).
-TRIGGER_GEN="$(q '.trigger.generation // "1st"')"
-TRIGGER_REGION="$(q '.trigger.region // "global"')"
-TRIGGER_CONNECTION="$(q '.trigger.connection // ""')"
-# repositoryId defaults to the github repo name when not set explicitly.
+TRIGGER_REGION="$(q '.trigger.region')"
+TRIGGER_CONNECTION="$(q '.trigger.connection')"
+# repositoryId defaults to the github repo name when left empty.
 TRIGGER_REPO_ID="$(q '(.trigger.repositoryId // "") | select(length>0) // empty' || true)"
 [ -n "$TRIGGER_REPO_ID" ] || TRIGGER_REPO_ID="$(q '.trigger.github.repo')"
 GH_OWNER="$(q '.trigger.github.owner')"

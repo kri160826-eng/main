@@ -22,9 +22,8 @@
   },
   "trigger": {
     "name": "deploy-app",
-    "generation": "1st",	
 	"region": "us-central1",
-    "connection": "your-connection-name",
+    "connection": "GitHub",
     "repositoryId": "",
     "github": {
       "owner": "kri160826-eng",
