@@ -76,7 +76,7 @@ else
     --region="$TRIGGER_REGION" \
     --repository="$REPO_RESOURCE" \
     --branch-pattern="$BRANCH_PATTERN" \
-    --build-config="cloudbuild.yaml" \
+    --build-config="deployment/cloudbuild.yaml" \
     --substitutions="$(build_subs)"
 fi
 
