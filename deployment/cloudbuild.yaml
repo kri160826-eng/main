@@ -1,22 +1,52 @@
-# cloudbuild.yaml
-# Build -> push -> deploy to Cloud Run.
-# NO hardcoded config lives here. Every value comes in as a _SUBSTITUTION,
-# injected from config.json by setup.ps1 (trigger) or deploy.ps1 (manual).
+# cloudbuild.yaml — build, push, deploy to Cloud Run.
+# Self-contained: reads config.json from the repo at build time, so the trigger
+# needs NO substitutions. Every dynamic value lives in config.json.
 #
-# Substitutions expected (all sourced from config.json):
-#   _PROJECT_ID _REGION _AR_HOST _REPO _SERVICE _SOURCE_DIR
-#   _PORT _MEMORY _CPU _MIN_INSTANCES _MAX_INSTANCES _ALLOW_UNAUTH _ENV_VARS
-#
-# Note: Cloud Build substitutes ${_VAR} and $SHORT_SHA before the shell runs.
-# Runtime bash variables are escaped as $$VAR so Cloud Build leaves them alone.
+# Runtime bash variables are escaped as $$VAR; only $SHORT_SHA (a Cloud Build
+# builtin) is left as a single $ for Cloud Build to substitute.
 
 options:
   logging: CLOUD_LOGGING_ONLY
   machineType: E2_MEDIUM
-  substitution_option: ALLOW_LOOSE
 
 steps:
-  # 1. Build. Tag = commit SHA when triggered, else a timestamped manual tag.
+  # 0. Parse config.json -> /workspace/vars.env
+  - id: config
+    name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -e
+        CFG="$(find . -name config.json | grep -m1 -i deploy || find . -name config.json | head -1)"
+        [ -f "$$CFG" ] || { echo "config.json not found"; exit 1; }
+        echo "Using config: $$CFG"
+        python3 - "$$CFG" > /workspace/vars.env <<'PY'
+        import json, sys
+        c = json.load(open(sys.argv[1]))
+        s, ar = c["service"], c["artifactRegistry"]
+        env = s.get("envVars") or {}
+        vals = {
+          "PROJECT_ID": c["project"]["id"],
+          "REGION": c["region"],
+          "AR_HOST": f'{ar["location"]}-docker.pkg.dev',
+          "AR_REPO": ar["repo"],
+          "SERVICE": s["name"],
+          "SOURCE_DIR": s["sourceDir"],
+          "PORT": s["port"],
+          "MEMORY": s["memory"],
+          "CPU": s["cpu"],
+          "MIN_INSTANCES": s["minInstances"],
+          "MAX_INSTANCES": s["maxInstances"],
+          "ALLOW_UNAUTH": str(s["allowUnauthenticated"]).lower(),
+          "ENV_VARS": ",".join(f"{k}={v}" for k, v in env.items()),
+        }
+        for k, v in vals.items():
+            print(f'export {k}="{v}"')
+        PY
+        echo "---- resolved ----"; cat /workspace/vars.env
+
+  # 1. Build
   - id: build
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -24,19 +54,16 @@ steps:
       - -c
       - |
         set -e
-        TAG="${SHORT_SHA}"
-        if [ -z "$$TAG" ]; then TAG="manual-$$(date +%Y%m%d-%H%M%S)"; fi
+        source /workspace/vars.env
+        TAG="${SHORT_SHA}"; [ -n "$$TAG" ] || TAG="manual-$$(date +%Y%m%d-%H%M%S)"
         echo -n "$$TAG" > /workspace/_tag
-        IMAGE="${_AR_HOST}/${_PROJECT_ID}/${_REPO}/${_SERVICE}"
-        echo "Building $$IMAGE:$$TAG"
+        IMAGE="$$AR_HOST/$$PROJECT_ID/$$AR_REPO/$$SERVICE"
+        echo "Building $$IMAGE:$$TAG (context: $$SOURCE_DIR)"
         docker pull "$$IMAGE:latest" || true
-        docker build \
-          --cache-from "$$IMAGE:latest" \
-          -t "$$IMAGE:$$TAG" \
-          -t "$$IMAGE:latest" \
-          "${_SOURCE_DIR}"
+        docker build --cache-from "$$IMAGE:latest" \
+          -t "$$IMAGE:$$TAG" -t "$$IMAGE:latest" "$$SOURCE_DIR"
 
-  # 2. Push both tags to Artifact Registry.
+  # 2. Push
   - id: push
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -44,11 +71,12 @@ steps:
       - -c
       - |
         set -e
-        IMAGE="${_AR_HOST}/${_PROJECT_ID}/${_REPO}/${_SERVICE}"
+        source /workspace/vars.env
+        IMAGE="$$AR_HOST/$$PROJECT_ID/$$AR_REPO/$$SERVICE"
         docker push "$$IMAGE:$$(cat /workspace/_tag)"
         docker push "$$IMAGE:latest"
 
-  # 3. Deploy the immutable :$TAG image to Cloud Run.
+  # 3. Deploy
   - id: deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: bash
@@ -56,29 +84,27 @@ steps:
       - -c
       - |
         set -e
-        IMAGE="${_AR_HOST}/${_PROJECT_ID}/${_REPO}/${_SERVICE}"
-        TAG="$$(cat /workspace/_tag)"
+        source /workspace/vars.env
+        IMAGE="$$AR_HOST/$$PROJECT_ID/$$AR_REPO/$$SERVICE"
         FLAGS=(
-          run deploy "${_SERVICE}"
-          --image="$$IMAGE:$$TAG"
-          --project="${_PROJECT_ID}"
-          --region="${_REGION}"
+          run deploy "$$SERVICE"
+          --image="$$IMAGE:$$(cat /workspace/_tag)"
+          --project="$$PROJECT_ID"
+          --region="$$REGION"
           --platform=managed
-          --port="${_PORT}"
-          --memory="${_MEMORY}"
-          --cpu="${_CPU}"
-          --min-instances="${_MIN_INSTANCES}"
-          --max-instances="${_MAX_INSTANCES}"
+          --port="$$PORT"
+          --memory="$$MEMORY"
+          --cpu="$$CPU"
+          --min-instances="$$MIN_INSTANCES"
+          --max-instances="$$MAX_INSTANCES"
           --quiet
         )
-        if [ "${_ALLOW_UNAUTH}" = "true" ]; then
+        if [ "$$ALLOW_UNAUTH" = "true" ]; then
           FLAGS+=(--allow-unauthenticated)
         else
           FLAGS+=(--no-allow-unauthenticated)
         fi
-        if [ -n "${_ENV_VARS}" ]; then
-          FLAGS+=(--set-env-vars="${_ENV_VARS}")
-        fi
+        [ -n "$$ENV_VARS" ] && FLAGS+=(--set-env-vars="$$ENV_VARS")
         gcloud "$${FLAGS[@]}"
 
 timeout: 1200s

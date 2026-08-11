@@ -8,25 +8,24 @@
     "repo": "apps"
   },
   "service": {
-    "name": "data-modeler-agent2",
-    "sourceDir": ".",
+    "name": "my-service",
+    "sourceDir": "app",
     "port": 8080,
     "memory": "512Mi",
     "cpu": "1",
     "minInstances": 0,
-    "maxInstances": 1,
+    "maxInstances": 10,
     "allowUnauthenticated": true,
-    "envVars": {
-      "EXAMPLE_KEY": "example-value"
-    }
+    "envVars": {}
   },
   "trigger": {
     "name": "deploy-app",
-	"region": "us-central1",
+    "region": "us-central1",
     "connection": "GitHub",
-    "repositoryId": "",
+    "repositoryId": "main",
+    "buildConfigPath": "deployment/cloudbuild.yaml",
     "github": {
-      "owner": "kri160826-eng",
+      "owner": "YOUR_GITHUB_OWNER",
       "repo": "main"
     },
     "branchPattern": "^main$"
