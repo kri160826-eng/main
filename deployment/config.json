@@ -22,11 +22,11 @@
     "name": "deploy-app",
     "region": "us-central1",
     "connection": "GitHub",
-    "repositoryId": "main",
+    "repositoryId": "kri160826-eng-main",
     "buildConfigPath": "deployment/cloudbuild.yaml",
     "github": {
       "owner": "YOUR_GITHUB_OWNER",
-      "repo": "main"
+      "repo": "kri160826-eng-main"
     },
     "branchPattern": "^main$"
   }
