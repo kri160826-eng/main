@@ -21,8 +21,8 @@
   "trigger": {
     "name": "deploy-apps",
     "region": "us-central1",
-    "connection": "GitHub1",
-    "repositoryId": "kri160826-eng-main1",
+    "connection": "GitHub",
+    "repositoryId": "kri160826-eng-main",
     "buildConfigPath": "cloudbuild.yaml",
     "serviceAccount": "cloudbuild-deployer@project-612d0540-c843-44b0-a04.iam.gserviceaccount.com",
     "roles": [
