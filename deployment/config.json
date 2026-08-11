@@ -9,7 +9,7 @@
   },
   "service": {
     "name": "my-service",
-    "sourceDir": "app",
+    "sourceDir": "apps",
     "port": 8080,
     "memory": "512Mi",
     "cpu": "1",
