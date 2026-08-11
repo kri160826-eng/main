@@ -40,10 +40,12 @@ for role in roles/run.admin roles/iam.serviceAccountUser roles/artifactregistry.
   echo "    granted $role"
 done
 
-echo "==> Creating trigger '$TRIGGER_NAME'"
-if gcloud builds triggers describe "$TRIGGER_NAME" --region="$REGION" >/dev/null 2>&1; then
+# TRIGGER_REGION comes from config.json (.trigger.region, default "global").
+# 1st-gen GitHub triggers must be "global"; the build still deploys to $REGION.
+echo "==> Creating trigger '$TRIGGER_NAME' (region: $TRIGGER_REGION)"
+if gcloud builds triggers describe "$TRIGGER_NAME" --region="$TRIGGER_REGION" >/dev/null 2>&1; then
   echo "    trigger exists. To apply config changes, delete & re-run:"
-  echo "    gcloud builds triggers delete $TRIGGER_NAME --region=$REGION"
+  echo "    gcloud builds triggers delete $TRIGGER_NAME --region=$TRIGGER_REGION"
 else
   gcloud builds triggers create github \
     --name="$TRIGGER_NAME" \
@@ -52,9 +54,7 @@ else
     --branch-pattern="$BRANCH_PATTERN" \
     --build-config="cloudbuild.yaml" \
     --region="$TRIGGER_REGION" \
-    --substitutions="$(build_subs)")"
+    --substitutions="$(build_subs)"
 fi
 
 echo "==> Done. Push to a branch matching '$BRANCH_PATTERN' to deploy."
-
-
