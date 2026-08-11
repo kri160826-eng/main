@@ -51,8 +51,10 @@ else
     --repo-name="$GH_REPO" \
     --branch-pattern="$BRANCH_PATTERN" \
     --build-config="cloudbuild.yaml" \
-    --region="$REGION" \
-    --substitutions="$(build_subs)"
+    --region="$TRIGGER_REGION" \
+    --substitutions="$(build_subs)")"
 fi
 
 echo "==> Done. Push to a branch matching '$BRANCH_PATTERN' to deploy."
+
+
