@@ -45,7 +45,6 @@ ensure_artifact_registry() {
 }
 
 ensure_service_account() {
-  local PN CB_AGENT
   echo "==> Deploy service account $SA_EMAIL"
   if gcloud iam service-accounts describe "$SA_EMAIL" --project="$PROJECT_ID" >/dev/null 2>&1; then
     echo "    already exists, skipping create"
@@ -62,8 +61,6 @@ ensure_service_account() {
       && echo "    grant $role"
   done
   # Let the Cloud Build service agent impersonate this SA for triggered builds.
-  PN="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
-  CB_AGENT="service-${PN}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
   gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" --project="$PROJECT_ID" \
     --member="serviceAccount:$CB_AGENT" --role="roles/iam.serviceAccountTokenCreator" >/dev/null 2>&1 \
     && echo "    CB agent may impersonate $SA_ID" || true
@@ -73,7 +70,15 @@ ensure_connection() {
   echo "==> Host connection '$TRIGGER_CONNECTION' ($TRIGGER_REGION)"
   if ! gcloud builds connections describe "$TRIGGER_CONNECTION" \
          --region="$TRIGGER_REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-    echo "    not found; creating GitHub connection"
+    # Creating a connection stores its OAuth token in Secret Manager, so the
+    # Cloud Build service agent (P4SA) needs Secret Manager admin first.
+    echo "    granting Secret Manager admin to Cloud Build service agent"
+    gcloud beta services identity create --service=cloudbuild.googleapis.com \
+      --project="$PROJECT_ID" >/dev/null 2>&1 || true
+    gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+      --member="serviceAccount:$CB_AGENT" --role="roles/secretmanager.admin" \
+      --condition=None >/dev/null && echo "    granted secretmanager.admin to $CB_AGENT"
+    echo "    creating GitHub connection (may need a few seconds for IAM to propagate)"
     gcloud builds connections create github "$TRIGGER_CONNECTION" \
       --region="$TRIGGER_REGION" --project="$PROJECT_ID"
   fi
@@ -136,6 +141,8 @@ ensure_trigger() {
 # ---- main ----
 echo "==> Project $PROJECT_ID"
 gcloud config set project "$PROJECT_ID" >/dev/null
+PN="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
+CB_AGENT="service-${PN}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
 ensure_apis
 ensure_artifact_registry
 ensure_trigger        # cascades: repository -> connection, and service account
