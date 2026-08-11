@@ -40,12 +40,24 @@ for role in roles/run.admin roles/iam.serviceAccountUser roles/artifactregistry.
   echo "    granted $role"
 done
 
-# TRIGGER_REGION comes from config.json (.trigger.region, default "global").
-# 1st-gen GitHub triggers must be "global"; the build still deploys to $REGION.
-echo "==> Creating trigger '$TRIGGER_NAME' (region: $TRIGGER_REGION)"
+# Trigger creation depends on generation (from config.json .trigger.generation):
+#   2nd -> host connection, REGIONAL, uses --repository
+#   1st -> GitHub App,       GLOBAL,   uses --repo-owner/--repo-name
+echo "==> Creating trigger '$TRIGGER_NAME' (gen: $TRIGGER_GEN, region: $TRIGGER_REGION)"
 if gcloud builds triggers describe "$TRIGGER_NAME" --region="$TRIGGER_REGION" >/dev/null 2>&1; then
   echo "    trigger exists. To apply config changes, delete & re-run:"
   echo "    gcloud builds triggers delete $TRIGGER_NAME --region=$TRIGGER_REGION"
+elif [ "$TRIGGER_GEN" = "2nd" ]; then
+  [ -n "$TRIGGER_CONNECTION" ] || { echo "ERROR: .trigger.connection is required for 2nd-gen" >&2; exit 1; }
+  REPO_RESOURCE="projects/$PROJECT_ID/locations/$TRIGGER_REGION/connections/$TRIGGER_CONNECTION/repositories/$TRIGGER_REPO_ID"
+  echo "    using repository: $REPO_RESOURCE"
+  gcloud builds triggers create github \
+    --name="$TRIGGER_NAME" \
+    --region="$TRIGGER_REGION" \
+    --repository="$REPO_RESOURCE" \
+    --branch-pattern="$BRANCH_PATTERN" \
+    --build-config="cloudbuild.yaml" \
+    --substitutions="$(build_subs)"
 else
   gcloud builds triggers create github \
     --name="$TRIGGER_NAME" \
