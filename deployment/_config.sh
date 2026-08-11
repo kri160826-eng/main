@@ -21,6 +21,8 @@ TRIGGER_REGION="$(q '.trigger.region')"
 TRIGGER_CONNECTION="$(q '.trigger.connection')"
 TRIGGER_REPO_ID="$(q '.trigger.repositoryId // .trigger.github.repo')"
 BUILD_CONFIG_PATH="$(q '.trigger.buildConfigPath // "cloudbuild.yaml"')"
+# Custom build/deploy service account email that the trigger runs as.
+SERVICE_ACCOUNT="$(q '.trigger.serviceAccount // ""')"
 GH_OWNER="$(q '.trigger.github.owner')"
 GH_REPO="$(q '.trigger.github.repo')"
 BRANCH_PATTERN="$(q '.trigger.branchPattern')"

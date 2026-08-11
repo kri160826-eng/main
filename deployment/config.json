@@ -19,13 +19,14 @@
     "envVars": {}
   },
   "trigger": {
-    "name": "deploy-app",
+    "name": "deploy-apps",
     "region": "us-central1",
     "connection": "GitHub",
     "repositoryId": "kri160826-eng-main",
-    "buildConfigPath": "deployment/cloudbuild.yaml",
+    "buildConfigPath": "cloudbuild.yaml",
+    "serviceAccount": "cloudbuild-deployer@project-612d0540-c843-44b0-a04.iam.gserviceaccount.com",
     "github": {
-      "owner": "YOUR_GITHUB_OWNER",
+      "owner": "kri160826-eng",
       "repo": "kri160826-eng-main"
     },
     "branchPattern": "^main$"
