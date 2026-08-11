@@ -1,6 +1,6 @@
 {
   "project": {
-    "id": "your-gcp-project-id"
+    "id": "project-612d0540-c843-44b0-a04"
   },
   "region": "us-central1",
   "artifactRegistry": {
@@ -8,24 +8,24 @@
     "repo": "apps"
   },
   "service": {
-    "name": "my-service",
+    "name": "data-modeler-agent2",
     "sourceDir": ".",
     "port": 8080,
     "memory": "512Mi",
     "cpu": "1",
     "minInstances": 0,
-    "maxInstances": 10,
+    "maxInstances": 1,
     "allowUnauthenticated": true,
     "envVars": {
       "EXAMPLE_KEY": "example-value"
     }
   },
   "trigger": {
-    "name": "deploy-my-service",
-    "region": "global",
+    "name": "deploy-app",
+	"region": "us-central1",
     "github": {
-      "owner": "your-github-org-or-user",
-      "repo": "your-repo-name"
+      "owner": "kri160826-eng",
+      "repo": "main"
     },
     "branchPattern": "^main$"
   }
