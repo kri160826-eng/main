@@ -23,6 +23,14 @@ TRIGGER_REPO_ID="$(q '.trigger.repositoryId // .trigger.github.repo')"
 BUILD_CONFIG_PATH="$(q '.trigger.buildConfigPath // "cloudbuild.yaml"')"
 # Custom build/deploy service account email that the trigger runs as.
 SERVICE_ACCOUNT="$(q '.trigger.serviceAccount // ""')"
+# Roles granted to that SA (override via config.trigger.roles: ["roles/..."]).
+DEPLOY_ROLES="$(q '((.trigger.roles // ["roles/run.admin","roles/iam.serviceAccountUser","roles/artifactregistry.writer","roles/logging.logWriter"]) | join(" "))')"
 GH_OWNER="$(q '.trigger.github.owner')"
 GH_REPO="$(q '.trigger.github.repo')"
+GH_HOST="$(q '.trigger.github.host // "github.com"')"
 BRANCH_PATTERN="$(q '.trigger.branchPattern')"
+
+# Remote URI for the Cloud Build repository resource. Use an explicit
+# github.remoteUri if given, else build it from host/owner/repo (no hardcoding).
+REMOTE_URI="$(q '.trigger.github.remoteUri // ""')"
+[ -n "$REMOTE_URI" ] || REMOTE_URI="https://$GH_HOST/$GH_OWNER/$GH_REPO.git"

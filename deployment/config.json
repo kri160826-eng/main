@@ -25,6 +25,12 @@
     "repositoryId": "kri160826-eng-main",
     "buildConfigPath": "cloudbuild.yaml",
     "serviceAccount": "cloudbuild-deployer@project-612d0540-c843-44b0-a04.iam.gserviceaccount.com",
+    "roles": [
+      "roles/run.admin",
+      "roles/iam.serviceAccountUser",
+      "roles/artifactregistry.writer",
+      "roles/logging.logWriter"
+    ],
     "github": {
       "owner": "kri160826-eng",
       "repo": "kri160826-eng-main"
