@@ -12,7 +12,7 @@ main/                     # GitHub repo (default branch: main)
 │   └── Dockerfile
 └── deployment/           # these files                      <- committed to the repo
     ├── config.json
-    ├── cloudbuild.yaml   # <- trigger.buildConfigPath = deployment/cloudbuild.yaml
+    ├── cloudbuild.yaml   # <- trigger.buildConfigPath deployment/cloudbuild.yaml
     ├── _config.sh
     ├── setup.sh
     └── deploy.sh
