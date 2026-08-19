@@ -25,8 +25,7 @@ main/                     # GitHub repo (default branch: main)
 | `config.json` | Single source of truth. |
 | `cloudbuild.yaml` | Build → push → deploy; parses `config.json` at build time. |
 | `_config.sh` | Loader for the local scripts (needs `jq`). |
-| `setup-connection.sh` | **Run first, once.** Creates the host connection + Cloud Build repository (may require GitHub OAuth). |
-| `setup.sh` | Bootstrap: APIs, registry, IAM/permissions, trigger. Verifies (doesn't create) the connection/repo. |
+| `setup.sh` | One-time bootstrap: APIs, registry, IAM, repo link, trigger. |
 | `deploy.sh` | Manual one-off deploy. |
 
 ## config.json — key fields
@@ -49,15 +48,11 @@ main/                     # GitHub repo (default branch: main)
 2. Fill `config.json` — especially `trigger.github.owner` and `service.name`.
 3. **Commit & push** `deployment/` to GitHub (the trigger reads the config from GitHub):
    ```bash
-   cd .. && git add deployment apps && git commit -m "add deploy pipeline" && git push
+   cd .. && git add deployment app && git commit -m "add deploy pipeline" && git push
    ```
-4. Create the connection + Cloud Build repository (once; may prompt GitHub OAuth):
+4. Bootstrap:
    ```bash
-   cd deployment && ./setup-connection.sh
-   ```
-5. Bootstrap the rest (APIs, registry, permissions, trigger):
-   ```bash
-   ./setup.sh
+   cd deployment && ./setup.sh
    ```
 
 ## Deploy

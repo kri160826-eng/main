@@ -30,6 +30,18 @@ GH_REPO="$(q '.trigger.github.repo')"
 GH_HOST="$(q '.trigger.github.host // "github.com"')"
 BRANCH_PATTERN="$(q '.trigger.branchPattern')"
 
+# Non-interactive connection auth. When both are set, setup-connection.sh
+# creates the host connection in state COMPLETE (no browser OAuth), using a
+# GitHub PAT stored in Secret Manager + the Cloud Build GitHub App install id.
+GH_APP_INSTALL_ID="$(q '.trigger.github.appInstallationId // ""')"
+GH_TOKEN_SECRET="$(q '.trigger.github.authorizerTokenSecret // ""')"
+# gcloud requires a version-qualified secret path. If the config gives only the
+# secret (no "/versions/<n>"), default to the latest version.
+case "$GH_TOKEN_SECRET" in
+  ""|*/versions/*) : ;;
+  *) GH_TOKEN_SECRET="$GH_TOKEN_SECRET/versions/latest" ;;
+esac
+
 # Remote URI for the Cloud Build repository resource. Use an explicit
 # github.remoteUri if given, else build it from host/owner/repo (no hardcoding).
 REMOTE_URI="$(q '.trigger.github.remoteUri // ""')"

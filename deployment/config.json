@@ -5,10 +5,10 @@
   "region": "us-central1",
   "artifactRegistry": {
     "location": "us-central1",
-    "repo": "apps"
+    "repo": "deplycloudrunapps"
   },
   "service": {
-    "name": "my-service",
+    "name": "my-service1",
     "sourceDir": "apps",
     "port": 8080,
     "memory": "512Mi",
@@ -19,11 +19,11 @@
     "envVars": {}
   },
   "trigger": {
-    "name": "deploy-apps",
+    "name": "deploy-apps3",
     "region": "us-central1",
     "connection": "GitHub",
     "repositoryId": "kri160826-eng-main",
-    "buildConfigPath": "cloudbuild.yaml",
+    "buildConfigPath": "deployment/cloudbuild.yaml",
     "serviceAccount": "cloudbuild-deployer@project-612d0540-c843-44b0-a04.iam.gserviceaccount.com",
     "roles": [
       "roles/run.admin",
@@ -33,7 +33,10 @@
     ],
     "github": {
       "owner": "kri160826-eng",
-      "repo": "kri160826-eng-main"
+      "repo": "kri160826-eng-main",
+      "remoteUri": "https://github.com/kri160826-eng/main.git",
+      "appInstallationId": "",
+      "authorizerTokenSecret": ""
     },
     "branchPattern": "^main$"
   }
