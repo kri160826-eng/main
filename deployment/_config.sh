@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # _config.sh — parses config.json for setup.sh / deploy.sh.
-# The build pipeline reads config.json on its own, so this only exposes the
-# values the local scripts need to create infra + the trigger.
+#
+# The build pipeline (cloudbuild.yaml) reads config.json on its own, so this
+# only exposes the values the local scripts need to create infra + the trigger.
+#
+# NOTE: the 2nd-gen host connection (trigger.connection) and its linked
+# repository (trigger.repositoryId) are created MANUALLY in the Console
+# (Cloud Build -> Repositories -> 2nd gen). These scripts only reference them
+# by name — they never create the connection or link the repo.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,33 +22,15 @@ REGION="$(q '.region')"
 AR_LOCATION="$(q '.artifactRegistry.location')"
 AR_REPO="$(q '.artifactRegistry.repo')"
 
+# Trigger + its (pre-existing) connection/repository, referenced by name.
 TRIGGER_NAME="$(q '.trigger.name')"
 TRIGGER_REGION="$(q '.trigger.region')"
 TRIGGER_CONNECTION="$(q '.trigger.connection')"
-TRIGGER_REPO_ID="$(q '.trigger.repositoryId // .trigger.github.repo')"
+TRIGGER_REPO_ID="$(q '.trigger.repositoryId')"
 BUILD_CONFIG_PATH="$(q '.trigger.buildConfigPath // "cloudbuild.yaml"')"
+BRANCH_PATTERN="$(q '.trigger.branchPattern')"
+
 # Custom build/deploy service account email that the trigger runs as.
 SERVICE_ACCOUNT="$(q '.trigger.serviceAccount // ""')"
 # Roles granted to that SA (override via config.trigger.roles: ["roles/..."]).
 DEPLOY_ROLES="$(q '((.trigger.roles // ["roles/run.admin","roles/iam.serviceAccountUser","roles/artifactregistry.writer","roles/logging.logWriter"]) | join(" "))')"
-GH_OWNER="$(q '.trigger.github.owner')"
-GH_REPO="$(q '.trigger.github.repo')"
-GH_HOST="$(q '.trigger.github.host // "github.com"')"
-BRANCH_PATTERN="$(q '.trigger.branchPattern')"
-
-# Non-interactive connection auth. When both are set, setup-connection.sh
-# creates the host connection in state COMPLETE (no browser OAuth), using a
-# GitHub PAT stored in Secret Manager + the Cloud Build GitHub App install id.
-GH_APP_INSTALL_ID="$(q '.trigger.github.appInstallationId // ""')"
-GH_TOKEN_SECRET="$(q '.trigger.github.authorizerTokenSecret // ""')"
-# gcloud requires a version-qualified secret path. If the config gives only the
-# secret (no "/versions/<n>"), default to the latest version.
-case "$GH_TOKEN_SECRET" in
-  ""|*/versions/*) : ;;
-  *) GH_TOKEN_SECRET="$GH_TOKEN_SECRET/versions/latest" ;;
-esac
-
-# Remote URI for the Cloud Build repository resource. Use an explicit
-# github.remoteUri if given, else build it from host/owner/repo (no hardcoding).
-REMOTE_URI="$(q '.trigger.github.remoteUri // ""')"
-[ -n "$REMOTE_URI" ] || REMOTE_URI="https://$GH_HOST/$GH_OWNER/$GH_REPO.git"

@@ -1,0 +1,76 @@
+// config.example.jsonc — annotated reference for config.json.
+//
+// config.json itself must stay STRICT JSON (no comments): it is parsed by jq
+// in _config.sh and read directly by the build pipeline (cloudbuild.yaml). Use
+// this file as the key-by-key explanation; copy values into config.json,
+// dropping the comments.
+//
+// NOTE: the 2nd-gen host connection and its linked repository are created
+// MANUALLY in the Console (Cloud Build -> Repositories -> 2nd gen). The scripts
+// only reference them by name via trigger.connection + trigger.repositoryId;
+// they never create the connection or link the repo.
+{
+  "project": {
+    // GCP project ID that owns every resource created by the scriptsss.
+    "id": "project-612d0540-c843-44b0-a04"
+  },
+
+  // Default GCP region for the Cloud Run service / general resources.
+  "region": "us-central1",
+
+  "artifactRegistry": {
+    // Region of the Artifact Registry that stores built container images.
+    "location": "us-central1",
+    // Artifact Registry repository name (created by setup.sh if missing).
+    "repo": "apps"
+  },
+
+  "service": {
+    // Cloud Run service name to deploy.
+    "name": "my-service",
+    // Path (relative to repo root) of the app source that gets built.
+    "sourceDir": "apps",
+    // Container port the app listens on; Cloud Run routes traffic here.
+    "port": 8080,
+    // Memory limit per instance (e.g. "256Mi", "512Mi", "1Gi").
+    "memory": "512Mi",
+    // vCPU allocation per instance ("1", "2", ...).
+    "cpu": "1",
+    // Minimum warm instances (0 = scale to zero when idle).
+    "minInstances": 0,
+    // Upper bound on autoscaling instances.
+    "maxInstances": 10,
+    // true = public (unauthenticated) invocations allowed; false = IAM-gated.
+    "allowUnauthenticated": true,
+    // Runtime environment variables injected into the service, as key/value.
+    "envVars": {}
+  },
+
+  "trigger": {
+    // Cloud Build trigger name (created by setup.sh).
+    "name": "deploy-apps",
+    // Region for the trigger and for the (pre-existing) connection + repository.
+    "region": "us-central1",
+    // Name of the MANUALLY created 2nd-gen host connection. setup.sh only
+    // verifies it exists (Cloud Build -> Repositories -> 2nd gen).
+    "connection": "GitHub2",
+    // Id of the MANUALLY linked repository resource under that connection.
+    // The trigger's repository path is derived as:
+    //   projects/<project>/locations/<region>/connections/<connection>/repositories/<repositoryId>
+    "repositoryId": "kri160826-eng-main",
+    // Path to the build config the trigger runs, relative to repo root.
+    "buildConfigPath": "cloudbuild.yaml",
+    // Custom service account the build/deploy runs as (created + granted roles
+    // by setup.sh). Leave "" to use the default Cloud Build SA.
+    "serviceAccount": "cloudbuild-deployer@project-612d0540-c843-44b0-a04.iam.gserviceaccount.com",
+    // IAM roles granted to the service account above.
+    "roles": [
+      "roles/run.admin",                // deploy/manage Cloud Run services
+      "roles/iam.serviceAccountUser",   // act as the runtime service account
+      "roles/artifactregistry.writer",  // push built images
+      "roles/logging.logWriter"         // write build/deploy logs
+    ],
+    // Regex of branches whose pushes fire the trigger (e.g. only main).
+    "branchPattern": "^main$"
+  }
+}

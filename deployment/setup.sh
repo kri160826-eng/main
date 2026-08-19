@@ -6,8 +6,10 @@
 #   ensure_trigger -> ensure_repository -> ensure_connection
 #                  -> ensure_service_account
 #
-# Prereq: the 2nd-gen host connection (trigger.connection) exists & is COMPLETE
-#         (one-time OAuth: Console -> Cloud Build -> Repositories -> 2nd gen).
+# Prereq (MANUAL, one-time in the Console -> Cloud Build -> Repositories -> 2nd
+#   gen): the host connection (trigger.connection) exists & is Enabled, and the
+#   repository (trigger.repositoryId) is linked under it. This script only
+#   verifies they exist — it never creates them.
 # Prereq: cloudbuild.yaml + config.json are committed & pushed to the repo.
 #
 # Usage:  ./setup.sh
@@ -27,8 +29,7 @@ ensure_apis() {
   echo "==> Enabling APIs"
   gcloud services enable --project="$PROJECT_ID" \
     cloudbuild.googleapis.com run.googleapis.com \
-    artifactregistry.googleapis.com iam.googleapis.com \
-    secretmanager.googleapis.com
+    artifactregistry.googleapis.com iam.googleapis.com
 }
 
 ensure_artifact_registry() {
@@ -66,55 +67,32 @@ ensure_service_account() {
     && echo "    CB agent may impersonate $SA_ID" || true
 }
 
+# The connection + repository are created MANUALLY in the Console
+# (Cloud Build -> Repositories -> 2nd gen). Here we only VERIFY they exist.
 ensure_connection() {
   echo "==> Host connection '$TRIGGER_CONNECTION' ($TRIGGER_REGION)"
-  if ! gcloud builds connections describe "$TRIGGER_CONNECTION" \
-         --region="$TRIGGER_REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-    # Creating a connection stores its OAuth token in Secret Manager, so the
-    # Cloud Build service agent (P4SA) needs Secret Manager admin first.
-    echo "    granting Secret Manager admin to Cloud Build service agent"
-    gcloud beta services identity create --service=cloudbuild.googleapis.com \
-      --project="$PROJECT_ID" >/dev/null 2>&1 || true
-    gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-      --member="serviceAccount:$CB_AGENT" --role="roles/secretmanager.admin" \
-      --condition=None >/dev/null && echo "    granted secretmanager.admin to $CB_AGENT"
-    echo "    creating GitHub connection (may need a few seconds for IAM to propagate)"
-    gcloud builds connections create github "$TRIGGER_CONNECTION" \
-      --region="$TRIGGER_REGION" --project="$PROJECT_ID"
-  fi
-  # A github.com connection must be authorized once via browser OAuth (install
-  # the Cloud Build GitHub App). We can create the resource, but not click
-  # "Authorize" for you — surface the exact link and stop until it's COMPLETE.
-  local stage action
-  stage="$(gcloud builds connections describe "$TRIGGER_CONNECTION" \
-             --region="$TRIGGER_REGION" --project="$PROJECT_ID" \
-             --format='value(installationState.stage)' 2>/dev/null || true)"
-  if [ -n "$stage" ] && [ "$stage" != "COMPLETE" ]; then
-    action="$(gcloud builds connections describe "$TRIGGER_CONNECTION" \
-                --region="$TRIGGER_REGION" --project="$PROJECT_ID" \
-                --format='value(installationState.actionUri)' 2>/dev/null || true)"
-    echo "ERROR: connection '$TRIGGER_CONNECTION' needs authorization (stage: $stage)." >&2
-    echo "  Open this to install/authorize the Cloud Build GitHub App, then re-run setup.sh:" >&2
-    echo "  ${action:-Console -> Cloud Build -> Repositories -> 2nd gen -> $TRIGGER_CONNECTION}" >&2
+  if gcloud builds connections describe "$TRIGGER_CONNECTION" \
+       --region="$TRIGGER_REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+    echo "    found"
+  else
+    echo "ERROR: connection '$TRIGGER_CONNECTION' not found. Create it manually:" >&2
+    echo "       Console -> Cloud Build -> Repositories -> 2nd gen -> Create connection." >&2
     exit 1
   fi
-  echo "    ready"
 }
 
 ensure_repository() {
   ensure_connection                                  # dependency
-  echo "==> Cloud Build repository '$TRIGGER_REPO_ID' -> $REMOTE_URI"
+  echo "==> Cloud Build repository '$TRIGGER_REPO_ID'"
   if gcloud builds repositories describe "$TRIGGER_REPO_ID" \
        --connection="$TRIGGER_CONNECTION" --region="$TRIGGER_REGION" \
        --project="$PROJECT_ID" >/dev/null 2>&1; then
-    echo "    already exists, skipping"
+    echo "    found"
   else
-    gcloud builds repositories create "$TRIGGER_REPO_ID" \
-      --remote-uri="$REMOTE_URI" \
-      --connection="$TRIGGER_CONNECTION" \
-      --region="$TRIGGER_REGION" \
-      --project="$PROJECT_ID"
-    echo "    created"
+    echo "ERROR: repository '$TRIGGER_REPO_ID' not linked under '$TRIGGER_CONNECTION'." >&2
+    echo "       Link it manually: Console -> Cloud Build -> Repositories -> 2nd gen" >&2
+    echo "       -> connection '$TRIGGER_CONNECTION' -> Link repository." >&2
+    exit 1
   fi
 }
 
