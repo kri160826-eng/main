@@ -1,241 +1,167 @@
-# ⭐ Data Modeler Agent
+# Water Meter OCR
 
-An agent that reads a **Silver** BigQuery dataset, analyzes its tables and
-metadata, and **recommends a Gold-layer star schema** (facts, dimensions,
-keys, relationships, partitioning/clustering, column mappings and
-transformation SQL). It generates a full proposal with an ERD and SQL scripts,
-saves the artifacts to a GCS bucket, and — **only after you approve in the
-UI** — creates the Gold dataset in BigQuery and loads the data.
+A review-first Streamlit application that uses Gemini on Vertex AI to extract
+analog water-meter readings and handwritten customer/connection labels.
 
-Nothing is created or overwritten in BigQuery without explicit approval.
+The application separates black whole-number digits from red decimal digits,
+derives the final reading in code, flags uncertain results, lets an operator
+correct the fields, and exports a reviewed CSV.
 
----
+## What improved
 
-## Features
-
-- Connects to BigQuery and inspects a Silver dataset: table names, schemas,
-  column types, row counts, sample rows, and declared constraints.
-- Identifies entities, facts, dimensions, primary/foreign keys and
-  relationships and designs a **Kimball star schema**.
-- Produces:
-  - Fact & dimension tables with surrogate/business keys
-  - Primary key & foreign key definitions (BigQuery `NOT ENFORCED`)
-  - Recommended partitioning & clustering
-  - Silver → Gold column mappings and transformation SQL
-  - Data quality assumptions and per-table rationale
-  - A Mermaid **ERD**
-- **Review-before-execution**: generates a proposal only, until you approve.
-- Saves artifacts to GCS: proposal JSON, ERD (`.mmd`), DDL SQL, transformation
-  SQL, summary report, and (after execution) logs + results.
-- **Two modeling engines**:
-  - **Gemini Flash** (set `GEMINI_API_KEY`) — richer reasoning & transform SQL.
-  - **Heuristic** fallback — deterministic, works fully offline.
-
----
+- Validates uploads, applies EXIF rotation, and resizes large images consistently.
+- Preserves leading zeros and decimal precision; unreadable readings remain blank
+  instead of being silently converted to `0`.
+- Calculates `reading_m3` in Python rather than accepting model arithmetic.
+- Adds confidence and `review_required` fields with a configurable threshold.
+- Caches successful results in the Streamlit session to avoid accidental repeat
+  API calls during UI reruns.
+- Adds an editable review table and recalculates corrected readings on CSV export.
+- Adds offline tests, dependency ranges, credential exclusions, a non-root
+  container, a health check, and an optional Cloud Build deployment definition.
 
 ## Project layout
 
-```
-data-modeler-agent/
-├── app.py                      # Streamlit UI (analyze → review → approve)
-├── src/
-│   ├── config.py               # Env-driven settings (no hardcoded ids)
-│   ├── logging_config.py       # Logging + in-memory buffer for the UI/GCS
-│   ├── validation.py           # Input validation before any GCP call
-│   ├── bigquery_client.py      # BigQuery inspect + execute wrapper
-│   ├── analyzer.py             # Silver dataset inspection
-│   ├── models.py               # Pydantic proposal contract
-│   ├── modeler.py              # LLM + heuristic star-schema modelers
-│   ├── erd.py                  # Mermaid ERD generation + HTML render
-│   ├── ddl_generator.py        # BigQuery DDL generation
-│   ├── transform_generator.py  # Silver → Gold transformation SQL
-│   ├── report.py               # Summary report + artifact bundle
-│   ├── gcs_storage.py          # GCS uploads
-│   └── executor.py             # Approval-gated dataset/table create + load
-├── requirements.txt
-├── .env.example
-├── Dockerfile
-└── README.md
-```
-
----
+| File | Purpose |
+| --- | --- |
+| `app.py` | Upload, analysis, review, correction, and CSV export UI |
+| `meter_reader.py` | Image validation and Gemini extraction |
+| `schema.py` | Structured model response and deterministic reading calculation |
+| `config.py` | Environment validation and cached Vertex AI client |
+| `test_reader.py` | Optional live smoke test against sample images |
+| `tests/` | Offline unit tests; no Vertex AI request is made |
+| `cloudbuild.yaml` | Container build and Cloud Run deployment pipeline |
 
 ## Prerequisites
 
-- Python 3.11+ (3.12 recommended)
-- A GCP project with the **BigQuery** and **Cloud Storage** APIs enabled
-- A Silver dataset in BigQuery and a GCS bucket for outputs
-- Credentials with at least:
-  - `roles/bigquery.dataViewer` on the Silver dataset (read/inspect)
-  - `roles/bigquery.dataEditor` + `roles/bigquery.jobUser` (create Gold + load)
-  - `roles/storage.objectAdmin` on the output bucket
-- *(Optional)* A Google Gemini API key (from [AI Studio](https://aistudio.google.com/apikey)) to enable the Gemini modeling engine
-
----
+- Python 3.12
+- A Google Cloud project with billing enabled
+- Vertex AI API enabled: `aiplatform.googleapis.com`
+- A user or runtime service account allowed to call Vertex AI
 
 ## Local setup
 
 ```bash
-# 1. Clone / enter the project
-cd data-modeler-agent
-
-# 2. Create a virtual environment
 python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
+```
 
-# 3. Install dependencies
+Activate the environment:
+
+```bash
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+
+# macOS/Linux
+source .venv/bin/activate
+```
+
+Install dependencies and create the local configuration:
+
+```bash
 pip install -r requirements.txt
+cp .env.example .env
+```
 
-# 4. Configure environment
-cp .env.example .env               # then edit .env
+On Windows Command Prompt, use `copy .env.example .env` instead of `cp`.
 
-# 5. Authenticate to GCP (choose one)
-#    a) Application Default Credentials (recommended for local dev):
+Set your project in `.env`:
+
+```dotenv
+GOOGLE_CLOUD_PROJECT=your-gcp-project-id
+GOOGLE_CLOUD_LOCATION=us-central1
+GEMINI_MODEL=gemini-2.5-flash
+CONFIDENCE_THRESHOLD=0.80
+MAX_UPLOAD_MB=15
+MAX_IMAGE_EDGE=2400
+```
+
+Authenticate locally with Application Default Credentials:
+
+```bash
 gcloud auth application-default login
-#    b) or set GOOGLE_APPLICATION_CREDENTIALS in .env to a service-account key
+```
 
-# 6. Run
+Run the application:
+
+```bash
 streamlit run app.py
 ```
 
-Open the URL Streamlit prints (default http://localhost:8501).
+## Operator workflow
 
-### Configuration (`.env`)
+1. Upload one or more clear PNG/JPEG meter photos.
+2. Select **Analyze photos**. Results are reused during the browser session.
+3. Review every row marked **Review required**, and correct the digit strings or
+   handwritten label in the table.
+4. Clear the review checkbox after confirming a row.
+5. Download the reviewed CSV. `reading_m3` is recalculated from the edited black
+   and red digit fields at export time.
 
-| Variable | Required | Description |
-|---|---|---|
-| `GOOGLE_GENAI_USE_VERTEXAI` | optional | `true` to use **Vertex AI** (auth via ADC / service account; needs `roles/aiplatform.user`). Recommended on GCP. |
-| `GOOGLE_CLOUD_PROJECT` | optional | Vertex AI project (defaults to the source project entered in the UI). |
-| `GOOGLE_CLOUD_LOCATION` | optional | Vertex AI region (default `us-central1`). |
-| `GEMINI_API_KEY` | optional | AI Studio API key backend, used only when Vertex is **not** enabled. (`GOOGLE_API_KEY` also accepted.) |
-| `GEMINI_MODEL` | optional | Model id (default `gemini-2.5-flash`). |
+> Model confidence is a review aid, not a calibrated probability. Keep a human
+> review step for billing, compliance, or customer-facing decisions.
 
-> If neither Vertex AI nor an API key is configured, the deterministic
-> heuristic modeler is used.
-| `GOOGLE_APPLICATION_CREDENTIALS` | optional | Path to a service-account key. Omit to use ADC / attached identity. |
-| `BQ_LOCATION` | optional | BigQuery location (default `US`). Must match your datasets. |
-| `DEFAULT_GCP_PROJECT` / `DEFAULT_SILVER_DATASET` / `DEFAULT_GOLD_DATASET` / `DEFAULT_GCS_BUCKET` | optional | Pre-fill the form only. Users can override. |
-| `SAMPLE_ROW_LIMIT` | optional | Rows sampled per table (default 20). |
-| `MAX_TABLES` | optional | Max tables inspected (default 100). |
-| `LOG_LEVEL` | optional | `DEBUG`/`INFO`/`WARNING` (default `INFO`). |
+## Tests and linting
 
-> Project id, dataset names and bucket are **never hardcoded** — they come from
-> the UI (the `DEFAULT_*` values are only optional convenience pre-fills).
-
----
-
-## Using the app
-
-1. In the sidebar, enter **Source GCP project ID**, **Silver dataset**,
-   **Gold dataset**, and **GCS bucket** (plus optional business domain and a
-   comma-separated table filter).
-2. Click **🔍 Analyze Silver Dataset**. The agent inspects Silver, designs the
-   star schema, builds artifacts, and uploads the **proposal** to GCS.
-3. Review the **Proposal**, **ERD**, **Tables**, **SQL** and **Artifacts** tabs.
-4. Tick the confirmation box and click **✅ Approve and Create Gold Dataset**.
-   The agent creates the dataset + tables, runs the transformations, uploads
-   execution logs/results, and shows a per-step status table.
-
-### Artifacts written to GCS
-
-```
-gs://<bucket>/data-modeler/<gold_dataset>/<timestamp>/
-├── proposal/
-│   ├── proposal.json          # full structured proposal
-│   ├── erd.mmd                # Mermaid ERD
-│   ├── gold_ddl.sql           # BigQuery DDL
-│   ├── transformations.sql    # Silver → Gold SQL
-│   └── summary_report.md      # human-readable summary
-└── execution/                 # created only after approval
-    ├── execution_summary.txt
-    ├── execution_log.txt
-    └── result.json
+```bash
+pip install -r requirements-dev.txt
+pytest
+ruff check .
 ```
 
----
+The tests use a fake model client and do not require Google Cloud credentials.
+To make live calls against images in `samples/`:
+
+```bash
+python test_reader.py
+python test_reader.py "samples/Screenshot 2026-07-22 102217.png"
+```
+
+## Run with Docker
+
+```bash
+docker build -t water-meter-ocr .
+docker run --rm -p 8080:8080 \
+  -e GOOGLE_CLOUD_PROJECT=your-gcp-project-id \
+  -v "$HOME/.config/gcloud:/home/appuser/.config/gcloud:ro" \
+  water-meter-ocr
+```
+
+Open `http://localhost:8080`.
 
 ## Deploy to Cloud Run
 
-Set your variables:
+Create the Artifact Registry repository once:
 
 ```bash
-export PROJECT_ID="your-gcp-project"
-export REGION="us-central1"
-export REPO="data-modeler"
-export SERVICE="data-modeler-agent"
-export IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/$SERVICE:latest"
+gcloud artifacts repositories create apps \
+  --repository-format=docker \
+  --location=us-central1
 ```
 
-Enable APIs and create an Artifact Registry repo (once):
+Deploy directly from source:
 
 ```bash
-gcloud services enable run.googleapis.com bigquery.googleapis.com \
-    storage.googleapis.com artifactregistry.googleapis.com cloudbuild.googleapis.com \
-    --project "$PROJECT_ID"
-
-gcloud artifacts repositories create "$REPO" \
-    --repository-format=docker --location="$REGION" --project "$PROJECT_ID"
+gcloud run deploy water-meter-ocr \
+  --source=. \
+  --region=us-central1 \
+  --set-env-vars=GOOGLE_CLOUD_PROJECT=YOUR_PROJECT_ID \
+  --no-allow-unauthenticated
 ```
 
-Create a runtime service account with the needed roles:
+For continuous deployment, connect the repository to Cloud Build and use
+`cloudbuild.yaml`. Its defaults are `us-central1`, Artifact Registry repository
+`apps`, and Cloud Run service `water-meter-ocr`; override substitutions when your
+names differ.
 
-```bash
-export SA="data-modeler-sa"
-gcloud iam service-accounts create "$SA" --project "$PROJECT_ID"
+Grant the Cloud Run runtime service account only the permissions required to
+invoke Vertex AI. Never bake a service-account JSON key into the image.
 
-export SA_EMAIL="$SA@$PROJECT_ID.iam.gserviceaccount.com"
-for ROLE in roles/bigquery.dataEditor roles/bigquery.jobUser roles/storage.objectAdmin; do
-  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-    --member="serviceAccount:$SA_EMAIL" --role="$ROLE"
-done
-```
+## Accuracy guidance
 
-Build, push and deploy:
-
-```bash
-gcloud builds submit --tag "$IMAGE" --project "$PROJECT_ID"
-
-gcloud run deploy "$SERVICE" \
-    --image "$IMAGE" \
-    --region "$REGION" \
-    --project "$PROJECT_ID" \
-    --service-account "$SA_EMAIL" \
-    --allow-unauthenticated \
-    --set-env-vars "BQ_LOCATION=US,GEMINI_MODEL=gemini-2.5-flash,GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=$REGION"
-```
-
-> Using **Vertex AI** (as above), no API key/secret is needed — the runtime
-> service account authenticates. Grant it `roles/aiplatform.user` and enable
-> `aiplatform.googleapis.com`. For internal use, drop `--allow-unauthenticated`.
->
-> To use the **AI Studio** key backend instead, omit the Vertex env vars and add
-> `--set-secrets "GEMINI_API_KEY=gemini-api-key:latest"` after storing the key in
-> Secret Manager and granting the SA `roles/secretmanager.secretAccessor`.
-
-On Cloud Run you do **not** set `GOOGLE_APPLICATION_CREDENTIALS`; the attached
-service account is used automatically.
-
----
-
-## Design notes & extensibility
-
-- **DDL is generated deterministically** from a validated Pydantic model, so it
-  is always consistent. Only the transformation SQL body can come from the LLM.
-- **Safety**: dataset/table creation and loads live in `executor.py` and only
-  run after explicit UI approval. `CREATE TABLE IF NOT EXISTS` avoids clobbering
-  existing tables; loads use `CREATE OR REPLACE TABLE ... AS`.
-- **Adding domains**: the modeler is prompt/heuristic driven and schema-agnostic.
-  To specialise, extend `SYSTEM_PROMPT` in `modeler.py` or add domain rules to
-  `HeuristicModeler`. The `Proposal` contract in `models.py` is the stable
-  extension point.
-
-## Troubleshooting
-
-- **"Silver dataset was not found"** — check the project id, dataset name and
-  that `BQ_LOCATION` matches the dataset's region.
-- **GCS access errors** — the bucket must exist and the identity needs
-  `storage.objectAdmin` (or equivalent) on it.
-- **Heuristic engine used unexpectedly** — set `GEMINI_API_KEY`; the sidebar
-  shows which engine is active.
-- **Transformation SQL marked "TODO"** — the heuristic modeler could not infer a
-  mapping; review/edit before loading, or use the LLM engine.
+- Capture the meter straight-on with the complete digit strip visible.
+- Avoid glare, shadows, motion blur, and fingers covering the display.
+- Keep red digits distinguishable from black digits; do not use grayscale photos.
+- Use the handwritten label as a separate identifier, never as a substitute for
+  the meter reading.
+- Build a labelled test set from real field photos and track digit-level accuracy,
+  full-reading accuracy, and manual-review rate before production use.

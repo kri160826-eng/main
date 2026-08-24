@@ -53,7 +53,7 @@
     "region": "us-central1",
     // Name of the MANUALLY created 2nd-gen host connection. setup.sh only
     // verifies it exists (Cloud Build -> Repositories -> 2nd gen).
-    "connection": "GitHub2",
+    "connection": "GitHub",
     // Id of the MANUALLY linked repository resource under that connection.
     // The trigger's repository path is derived as:
     //   projects/<project>/locations/<region>/connections/<connection>/repositories/<repositoryId>

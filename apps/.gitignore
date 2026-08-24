@@ -1,13 +1,11 @@
+.env
 .venv/
 venv/
 __pycache__/
-*.pyc
-.git/
-.gitignore
-*.md
+*.py[cod]
 .pytest_cache/
 .ruff_cache/
-tests/
-samples/
+.streamlit/secrets.toml
 service-account*.json
 *-credentials.json
+meter_readings*.csv
