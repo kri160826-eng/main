@@ -8,7 +8,7 @@
     "repo": "apps"
   },
   "service": {
-    "name": "my-service",
+    "name": "MeterReading",
     "sourceDir": "apps",
     "port": 8080,
     "memory": "512Mi",
@@ -31,6 +31,6 @@
       "roles/artifactregistry.writer",
       "roles/logging.logWriter"
     ],
-    "branchPattern": "^main$"
+    "branchPattern": "^ImageReading$"
   }
 }
